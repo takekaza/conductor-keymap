@@ -142,6 +142,15 @@
 
     .ep-hint { font-size: 0.65rem; color: #bbb; margin-top: 8px; }
 
+    .ep-confirm {
+      display: none; width: 100%; margin-top: 10px;
+      padding: 10px; border-radius: 8px; border: none;
+      background: #5935a0; color: white;
+      font-size: 0.85rem; font-family: inherit; font-weight: 700;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    @media (max-width: 680px) { .ep-confirm { display: block; } }
+
     /* ── Legend ── */
     .legend { display:flex; gap:14px; margin-top:18px; flex-wrap:wrap; }
     .legend-item { display:flex; align-items:center; gap:5px; font-size:0.7rem; color:#777; }
@@ -237,6 +246,7 @@
   </div>
 
   <div class="ep-hint">Enter 確定　Esc キャンセル　Shift+Enter 改行</div>
+  <button class="ep-confirm" onclick="commitEdit()">確定</button>
 </div>
 
 <script>
@@ -497,8 +507,9 @@ function openEdit(keyEl, side, rowIdx, colIdx, currentLabel, currentColor) {
   input.value = currentLabel;
   setTimeout(() => { input.focus(); input.select(); }, 50);
 
+  const isMobileInput = window.innerWidth <= 680;
   input.onkeydown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+    if (!isMobileInput && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
     if (e.key === 'Escape') closeEdit();
   };
 
