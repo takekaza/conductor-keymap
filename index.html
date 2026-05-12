@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conductor Keymap Editor</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: #ececec;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    header { margin-bottom: 18px; }
+    h1 { font-size: 1.1rem; color: #444; font-weight: 600; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+
+    .tab-btn {
+      padding: 7px 20px;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      background: #d8d8d8;
+      color: #666;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { background: #5935a0; color: white; }
+    .tab-btn:hover:not(.active) { background: #c8c8c8; }
+
+    .layer-name {
+      font-size: 0.78rem; color: #999; margin-bottom: 16px;
+      padding: 3px 8px; border: 1px dashed transparent;
+      border-radius: 6px; cursor: pointer; display: inline-block;
+    }
+    .layer-name:hover { border-color: #ccc; color: #666; }
+
+    /* ── Keyboard card ── */
+    .keyboard-card {
+      background: white;
+      border-radius: 22px;
+      padding: 22px 28px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+      display: inline-flex;
+      gap: 48px;
+      align-items: flex-start;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .half-label {
+      font-size: 0.65rem; color: #bbb;
+      text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px;
+    }
+
+    .key-grid { display: flex; flex-direction: column; gap: 7px; }
+    .key-row  { display: flex; gap: 7px; }
+
+    /* ── Keys ── */
+    .key {
+      width: 62px; height: 62px;
+      border-radius: 10px; border: 2px solid #e4e4e4;
+      background: #fdfdfd;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      font-size: 0.7rem; line-height: 1.4; white-space: pre-line;
+      cursor: pointer; font-weight: 600; color: #333;
+      user-select: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 3px 0 #d0d0d0;
+      transition: border-color 0.12s, box-shadow 0.12s, transform 0.06s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .key.wide { width: 94px; }
+    .key:hover  { border-color: #aaa; box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 3px 0 #bbb; transform: translateY(-1px); }
+    .key:active { transform: translateY(1px); box-shadow: 0 1px 0 #bbb; }
+
+    /* key colours */
+    .key.trans  { background:#f6f6f6; color:#ccc; border-color:#eee; box-shadow:none; }
+    .key.lt     { background:#fff4e6; border-color:#fdb96e; color:#c4620a; }
+    .key.mod    { background:#f2ecff; border-color:#c4a0f5; color:#5935a0; }
+    .key.nav    { background:#e8f3fd; border-color:#85c0f0; color:#1055b0; }
+    .key.special{ background:#eefaf0; border-color:#80d490; color:#1e6e30; }
+    .key.plain  { background:#fdfdfd; border-color:#e4e4e4; color:#333; }
+
+    /* ── Edit popup ── */
+    .overlay { display:none; position:fixed; inset:0; z-index:99; }
+    .overlay.on { display:block; }
+
+    .edit-popup {
+      display: none; position: fixed;
+      background: white; border-radius: 16px;
+      padding: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+      z-index: 100; width: 240px;
+    }
+    .edit-popup.on { display: block; }
+
+    .ep-label { font-size: 0.68rem; font-weight: 700; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .edit-popup textarea {
+      width: 100%; padding: 8px 10px;
+      border: 2px solid #5935a0; border-radius: 8px;
+      font-size: 0.85rem; font-family: inherit;
+      outline: none; resize: none; line-height: 1.5;
+    }
+
+    /* Color picker */
+    .ep-color-label {
+      font-size: 0.68rem; font-weight: 700; color: #888;
+      margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    .color-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .color-chip {
+      width: 30px; height: 30px; border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 0.58rem; font-weight: 700;
+      transition: transform 0.1s, border-color 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .color-chip:hover  { transform: scale(1.1); }
+    .color-chip.active { border-color: #333; transform: scale(1.1); }
+
+    .cc-auto    { background:#e8e8e8; color:#666; }
+    .cc-mod     { background:#f2ecff; color:#5935a0; }
+    .cc-lt      { background:#fff4e6; color:#c4620a; }
+    .cc-nav     { background:#e8f3fd; color:#1055b0; }
+    .cc-special { background:#eefaf0; color:#1e6e30; }
+    .cc-trans   { background:#f6f6f6; color:#bbb; }
+    .cc-plain   { background:#fdfdfd; color:#888; border: 1px solid #ddd; }
+
+    .ep-hint { font-size: 0.65rem; color: #bbb; margin-top: 8px; }
+
+    /* ── Legend ── */
+    .legend { display:flex; gap:14px; margin-top:18px; flex-wrap:wrap; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:0.7rem; color:#777; }
+    .legend-dot  { width:13px; height:13px; border-radius:3px; border:2px solid; }
+
+    /* ── Toolbar ── */
+    .toolbar { display:flex; align-items:center; gap:8px; margin-top:16px; flex-wrap:wrap; }
+
+    .btn {
+      padding: 8px 16px; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 0.8rem; font-family: inherit; font-weight: 600;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .btn-primary   { background: #5935a0; color: white; }
+    .btn-secondary { background: #e4e4e4; color: #555; }
+    .btn:hover     { opacity: 0.82; transform: translateY(-1px); }
+    .btn:active    { transform: translateY(0); }
+
+    .save-msg { font-size: 0.7rem; color: #aaa; margin-left: 4px; }
+
+    /* ── Mobile ── */
+    @media (max-width: 680px) {
+      body { padding: 14px; }
+      h1   { font-size: 1rem; }
+
+      .keyboard-card {
+        flex-direction: column;
+        gap: 24px;
+        padding: 18px 20px;
+        display: flex;
+        width: 100%;
+      }
+
+      .key      { width: 54px; height: 54px; font-size: 0.65rem; }
+      .key.wide { width: 82px; }
+      .key-row  { gap: 5px; }
+      .key-grid { gap: 5px; }
+
+      .edit-popup {
+        width: calc(100vw - 28px);
+        left: 14px !important;
+        right: 14px;
+      }
+
+      .tab-btn { padding: 6px 14px; font-size: 0.78rem; }
+      .btn     { padding: 9px 14px; font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎹 Conductor Keymap Editor</h1>
+</header>
+
+<div class="tabs"       id="tabs"></div>
+<div class="layer-name" id="layerName" onclick="editLayerName()" title="クリックで名前変更"></div>
+
+<div class="keyboard-card" id="keyboard"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#f2ecff;border-color:#c4a0f5"></div>Modifier</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fff4e6;border-color:#fdb96e"></div>Layer Tap</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#e8f3fd;border-color:#85c0f0"></div>Navigation</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#eefaf0;border-color:#80d490"></div>Special</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f6f6f6;border-color:#eee"></div>透過 ▽</div>
+</div>
+
+<div class="toolbar">
+  <button class="btn btn-primary"   onclick="exportJSON()">↑ エクスポート</button>
+  <button class="btn btn-secondary" onclick="importJSON()">↓ インポート</button>
+  <button class="btn btn-secondary" onclick="resetLayer()">レイヤーリセット</button>
+  <span class="save-msg" id="saveMsg">自動保存</span>
+</div>
+
+<!-- Edit popup -->
+<div class="overlay" id="overlay" onclick="closeEdit()"></div>
+<div class="edit-popup" id="editPopup">
+  <div class="ep-label">ラベル</div>
+  <textarea id="editInput" rows="2" placeholder="例: LT1&#10;A"></textarea>
+
+  <div class="ep-color-label">色</div>
+  <div class="color-row" id="colorRow">
+    <div class="color-chip cc-auto"    data-c=""       title="自動">Auto</div>
+    <div class="color-chip cc-mod"     data-c="mod"    title="Modifier">M</div>
+    <div class="color-chip cc-lt"      data-c="lt"     title="Layer Tap">LT</div>
+    <div class="color-chip cc-nav"     data-c="nav"    title="Navigation">Nav</div>
+    <div class="color-chip cc-special" data-c="special"title="Special">Sp</div>
+    <div class="color-chip cc-trans"   data-c="trans"  title="透過 ▽">▽</div>
+    <div class="color-chip cc-plain"   data-c="plain"  title="白（色なし）">白</div>
+  </div>
+
+  <div class="ep-hint">Enter 確定　Esc キャンセル　Shift+Enter 改行</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  Supabase
+// ═══════════════════════════════════════════════════════════
+const SUPA_URL  = 'https://ohjvvqutxpurmdvgifgr.supabase.co';
+const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9oanZ2cXV0eHB1cm1kdmdpZmdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjQzOTMsImV4cCI6MjA5NDE0MDM5M30.cI3MAsdQTmAhXW9TkE-lC_vNN6bpfO42LBGaCME31gU';
+const supa      = supabase.createClient(SUPA_URL, SUPA_KEY);
+const ROW_ID    = 'default';
+
+async function cloudLoad() {
+  try {
+    const { data, error } = await supa
+      .from('conductor_keymap')
+      .select('data')
+      .eq('id', ROW_ID)
+      .single();
+    if (error || !data) return null;
+    return data.data;
+  } catch { return null; }
+}
+
+async function cloudSave(stateObj) {
+  try {
+    await supa.from('conductor_keymap').upsert({
+      id: ROW_ID,
+      data: stateObj,
+      updated_at: new Date().toISOString()
+    });
+  } catch (e) { console.warn('cloud save failed', e); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Constants & defaults
+// ═══════════════════════════════════════════════════════════
+const STORAGE_KEY = 'conductor-keymap-v3';
+
+const COLORS = ['', 'mod', 'lt', 'nav', 'special', 'trans', 'plain'];
+
+function emptyColors(layer) {
+  return {
+    Lc: layer.L.map(row => row.map(() => null)),
+    Rc: layer.R.map(row => row.map(() => null))
+  };
+}
+
+const DEFAULT = {
+  names: [
+    'Layer 0 — Windows Base',
+    'Layer 1 — Nav / Edit',
+    'Layer 2 — (未設定)',
+    'Layer 3 — (未設定)',
+    'Layer 4 — (未設定)'
+  ],
+  layers: [
+    {
+      L: [
+        ['Q',         'W',   'E',   'R',   'T'],
+        ['LT1\nA',    'S',   'D',   'F',   'G'],
+        ['Sft\nZ',    'X',   'C',   'V',   'B'],
+        ['GUI\nWin',  'Alt', 'MT\nCtrl/Hanja', 'LT2\nSpace', 'LT3\nBksp', 'Esc']
+      ],
+      R: [
+        ['Y',           'U',   'I',   'O',   'P'],
+        ['H',           'J',   'K',   'L',   '-'],
+        ['N',           'M',   ',',   '.',   'Sft\n/'],
+        ['LT3\nEnter', 'MT\nRAlt/Haen', '[', ']']
+      ]
+    },
+    {
+      L: [
+        ['Tab',  'F13', '▽',    '▽',    '▽'],
+        ['▽',    'F14', 'Ctrl', 'Shft', '▽'],
+        ['▽',    '▽',   '▽',   'Space', '▽'],
+        ['▽',    '▽',   'Alt',  '▽',    '▽',  '▽']
+      ],
+      R: [
+        ['▽',   'Home', '↑',  'End',  'BkSp'],
+        ['▽',   '←',    '↓',  '→',    'Ret'],
+        ['▽',   'Del',  ',',  '.',    '/'],
+        ['▽',   '▽',    '-',  '/']
+      ]
+    },
+    { L:[['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽','▽']], R:[['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽']] },
+    { L:[['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽','▽']], R:[['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽']] },
+    { L:[['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽','▽']], R:[['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽','▽'],['▽','▽','▽','▽']] }
+  ]
+};
+
+// Ensure color arrays exist
+DEFAULT.layers.forEach(l => {
+  const c = emptyColors(l);
+  l.Lc = c.Lc; l.Rc = c.Rc;
+});
+
+// ═══════════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════════
+let state = null;
+let currentLayer = 0;
+let editTarget   = null;   // { side, row, col }
+let pendingColor = null;   // color selection in popup
+
+function loadStateLocal() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (!s) return null;
+    const loaded = JSON.parse(s);
+    loaded.layers.forEach(l => {
+      if (!l.Lc) l.Lc = l.L.map(row => row.map(() => null));
+      if (!l.Rc) l.Rc = l.R.map(row => row.map(() => null));
+    });
+    return loaded;
+  } catch { return null; }
+}
+
+function migrate(loaded) {
+  loaded.layers.forEach(l => {
+    if (!l.Lc) l.Lc = l.L.map(row => row.map(() => null));
+    if (!l.Rc) l.Rc = l.R.map(row => row.map(() => null));
+  });
+  return loaded;
+}
+
+function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+function setSaveMsg(msg, duration = 1800) {
+  const el = document.getElementById('saveMsg');
+  el.textContent = msg;
+  if (duration) setTimeout(() => el.textContent = '☁️ 自動同期', duration);
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  setSaveMsg('保存中…', 0);
+  cloudSave(state).then(() => setSaveMsg('✓ クラウド同期済み'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Key colour
+// ═══════════════════════════════════════════════════════════
+function autoClass(label) {
+  if (!label || label === '▽') return 'trans';
+  if (/^LT\d/.test(label))                                                   return 'lt';
+  if (/^MT/.test(label))                                                      return 'mod';
+  if (/^(GUI|Win|Alt|Ctrl|Shft|Shift|RAlt|LAlt)/.test(label))               return 'mod';
+  if (/^(←|→|↑|↓|Home|End|PgUp|PgDn|BkSp|Bksp|Del|Ret|Ins)/.test(label)) return 'nav';
+  if (/^(Tab|Esc|Enter|Space|F\d|Mute|Vol|Play|Prvs|Next|BTH)/.test(label)) return 'special';
+  return '';
+}
+
+function resolveClass(label, override) {
+  if (override !== null && override !== undefined) return override;
+  return autoClass(label);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render
+// ═══════════════════════════════════════════════════════════
+function render() {
+  renderTabs();
+  document.getElementById('layerName').textContent =
+    state.names[currentLayer] + '　（クリックで名前変更）';
+  renderKeyboard();
+}
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const b = document.createElement('button');
+    b.className = 'tab-btn' + (i === currentLayer ? ' active' : '');
+    b.textContent = 'Layer ' + i;
+    b.onclick = () => { currentLayer = i; render(); };
+    el.appendChild(b);
+  }
+}
+
+function renderKeyboard() {
+  const el = document.getElementById('keyboard');
+  el.innerHTML = '';
+  const layer = state.layers[currentLayer];
+  el.appendChild(buildHalf('L', layer.L, layer.Lc, '左ハーフ'));
+  el.appendChild(buildHalf('R', layer.R, layer.Rc, '右ハーフ'));
+}
+
+function buildHalf(side, rows, colorRows, label) {
+  const wrap = document.createElement('div');
+
+  const lbl = document.createElement('div');
+  lbl.className = 'half-label';
+  lbl.textContent = label;
+  wrap.appendChild(lbl);
+
+  const grid = document.createElement('div');
+  grid.className = 'key-grid';
+
+  rows.forEach((rowKeys, rowIdx) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'key-row';
+
+    rowKeys.forEach((k, colIdx) => {
+      const isThumb = rowIdx === 3;
+      const isWide  = isThumb && (
+        (side === 'L' && (colIdx === 3 || colIdx === 4)) ||
+        (side === 'R' && (colIdx === 0 || colIdx === 1))
+      );
+
+      const override = colorRows?.[rowIdx]?.[colIdx] ?? null;
+      const cls = resolveClass(k, override);
+
+      const keyEl = document.createElement('div');
+      keyEl.className = ['key', cls, isWide ? 'wide' : ''].filter(Boolean).join(' ');
+      keyEl.textContent = k;
+      keyEl.title = 'タップして編集';
+      keyEl.addEventListener('click', () => openEdit(keyEl, side, rowIdx, colIdx, k, override));
+
+      rowEl.appendChild(keyEl);
+    });
+
+    grid.appendChild(rowEl);
+  });
+
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Edit popup
+// ═══════════════════════════════════════════════════════════
+function openEdit(keyEl, side, rowIdx, colIdx, currentLabel, currentColor) {
+  editTarget   = { side, rowIdx, colIdx };
+  pendingColor = currentColor;
+
+  const popup   = document.getElementById('editPopup');
+  const input   = document.getElementById('editInput');
+  const overlay = document.getElementById('overlay');
+
+  // Position
+  const isMobile = window.innerWidth <= 680;
+  if (!isMobile) {
+    const rect = keyEl.getBoundingClientRect();
+    let top  = rect.bottom + window.scrollY + 10;
+    let left = Math.min(rect.left + window.scrollX, window.innerWidth - 260);
+    if (rect.bottom + 200 > window.innerHeight) top = rect.top + window.scrollY - 210;
+    popup.style.top  = top  + 'px';
+    popup.style.left = left + 'px';
+  } else {
+    popup.style.top  = '50%';
+    popup.style.left = '14px';
+    popup.style.transform = 'translateY(-50%)';
+  }
+
+  popup.classList.add('on');
+  overlay.classList.add('on');
+
+  input.value = currentLabel;
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+    if (e.key === 'Escape') closeEdit();
+  };
+
+  // Color chips
+  updateColorChips(currentColor);
+  document.querySelectorAll('.color-chip').forEach(chip => {
+    chip.onclick = (e) => {
+      e.stopPropagation();
+      pendingColor = chip.dataset.c === '' ? null : chip.dataset.c;
+      updateColorChips(pendingColor);
+    };
+  });
+}
+
+function updateColorChips(selected) {
+  document.querySelectorAll('.color-chip').forEach(chip => {
+    const chipVal = chip.dataset.c === '' ? null : chip.dataset.c;
+    chip.classList.toggle('active', chipVal === selected);
+  });
+}
+
+function commitEdit() {
+  if (!editTarget) return;
+  const newLabel = document.getElementById('editInput').value;
+  const { side, rowIdx, colIdx } = editTarget;
+
+  state.layers[currentLayer][side][rowIdx][colIdx] = newLabel;
+
+  const colorKey = side === 'L' ? 'Lc' : 'Rc';
+  if (!state.layers[currentLayer][colorKey]) {
+    state.layers[currentLayer][colorKey] =
+      state.layers[currentLayer][side].map(row => row.map(() => null));
+  }
+  state.layers[currentLayer][colorKey][rowIdx][colIdx] = pendingColor;
+
+  save();
+  closeEdit();
+  renderKeyboard();
+}
+
+function closeEdit() {
+  const popup = document.getElementById('editPopup');
+  popup.classList.remove('on');
+  popup.style.transform = '';
+  document.getElementById('overlay').classList.remove('on');
+  editTarget = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Layer name
+// ═══════════════════════════════════════════════════════════
+function editLayerName() {
+  const name = prompt('レイヤー名を入力:', state.names[currentLayer]);
+  if (name !== null) { state.names[currentLayer] = name; save(); render(); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Export / Import / Reset
+// ═══════════════════════════════════════════════════════════
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'conductor-keymap.json';
+  a.click();
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = (e) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try { state = JSON.parse(ev.target.result); save(); render(); }
+      catch { alert('JSONの読み込みに失敗しました'); }
+    };
+    reader.readAsText(e.target.files[0]);
+  };
+  input.click();
+}
+
+function resetLayer() {
+  if (!confirm(`Layer ${currentLayer} をリセットしますか？`)) return;
+  state.layers[currentLayer] = deepCopy(DEFAULT.layers[currentLayer]);
+  state.names[currentLayer]  = DEFAULT.names[currentLayer];
+  save(); render();
+}
+
+// ── Boot ────────────────────────────────────────────────────
+async function boot() {
+  setSaveMsg('☁️ 読み込み中…', 0);
+
+  // 1) クラウドから取得を試みる
+  const cloud = await cloudLoad();
+  if (cloud) {
+    state = migrate(cloud);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setSaveMsg('✓ クラウドから読み込み完了');
+  } else {
+    // 2) ローカルにあればそれを使う
+    const local = loadStateLocal();
+    state = local || deepCopy(DEFAULT);
+    // ローカルデータをクラウドへ初回アップロード
+    if (local) cloudSave(state).then(() => setSaveMsg('✓ クラウドに同期しました'));
+    else setSaveMsg('☁️ 自動同期');
+  }
+
+  render();
+}
+
+boot();
+</script>
+</body>
+</html>
