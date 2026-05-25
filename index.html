@@ -92,6 +92,12 @@
     .key.special{ background:#eefaf0; border-color:#80d490; color:#1e6e30; }
     .key.plain  { background:#fdfdfd; border-color:#e4e4e4; color:#333; }
 
+    /* ── Key hold/tap display ── */
+    .key { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .key.has-hold { align-items: flex-start; justify-content: flex-start; padding: 5px 5px 3px; }
+    .key-hold { font-size: 0.65em; color: #999; line-height: 1.3; }
+    .key-tap  { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 0.75em; color: inherit; line-height: 1.2; }
+
     /* ── Edit popup ── */
     .overlay { display:none; position:fixed; inset:0; z-index:99; }
     .overlay.on { display:block; }
@@ -106,11 +112,16 @@
 
     .ep-label { font-size: 0.68rem; font-weight: 700; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .edit-popup textarea {
-      width: 100%; padding: 8px 10px;
+    .ep-field-label {
+      font-size: 0.62rem; font-weight: 700; color: #888;
+      margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .ep-field-label:first-of-type { margin-top: 0; }
+    .ep-input {
+      width: 100%; padding: 7px 10px;
       border: 2px solid #5935a0; border-radius: 8px;
       font-size: 0.85rem; font-family: inherit;
-      outline: none; resize: none; line-height: 1.5;
+      outline: none; box-sizing: border-box;
     }
 
     /* Color picker */
@@ -231,8 +242,10 @@
 <!-- Edit popup -->
 <div class="overlay" id="overlay" onclick="closeEdit()"></div>
 <div class="edit-popup" id="editPopup">
-  <div class="ep-label">ラベル</div>
-  <textarea id="editInput" rows="2" placeholder="例: LT1&#10;A"></textarea>
+  <div class="ep-field-label">長押し（ホールド）</div>
+  <input class="ep-input" id="editHold" type="text" placeholder="例: LT1（任意）">
+  <div class="ep-field-label">単押し（タップ）</div>
+  <input class="ep-input" id="editTap"  type="text" placeholder="例: A">
 
   <div class="ep-color-label">色</div>
   <div class="color-row" id="colorRow">
@@ -245,7 +258,7 @@
     <div class="color-chip cc-plain"   data-c="plain"  title="白（色なし）">白</div>
   </div>
 
-  <div class="ep-hint">Enter 確定　Esc キャンセル　Shift+Enter 改行</div>
+  <div class="ep-hint">Enter 確定　Esc キャンセル</div>
   <button class="ep-confirm" onclick="commitEdit()">確定</button>
 </div>
 
@@ -461,7 +474,20 @@ function buildHalf(side, rows, colorRows, label) {
 
       const keyEl = document.createElement('div');
       keyEl.className = ['key', cls, isWide ? 'wide' : ''].filter(Boolean).join(' ');
-      keyEl.textContent = k;
+      const parts = k ? k.split('\n') : [''];
+      if (parts.length >= 2 && parts[0] && parts[1]) {
+        keyEl.classList.add('has-hold');
+        const holdSpan = document.createElement('span');
+        holdSpan.className = 'key-hold';
+        holdSpan.textContent = parts[0];
+        const tapSpan = document.createElement('span');
+        tapSpan.className = 'key-tap';
+        tapSpan.textContent = parts[1];
+        keyEl.appendChild(holdSpan);
+        keyEl.appendChild(tapSpan);
+      } else {
+        keyEl.textContent = parts[parts.length - 1];
+      }
       keyEl.title = 'タップして編集';
       keyEl.addEventListener('click', () => openEdit(keyEl, side, rowIdx, colIdx, k, override));
 
@@ -482,9 +508,10 @@ function openEdit(keyEl, side, rowIdx, colIdx, currentLabel, currentColor) {
   editTarget   = { side, rowIdx, colIdx };
   pendingColor = currentColor;
 
-  const popup   = document.getElementById('editPopup');
-  const input   = document.getElementById('editInput');
-  const overlay = document.getElementById('overlay');
+  const popup      = document.getElementById('editPopup');
+  const holdInput  = document.getElementById('editHold');
+  const tapInput   = document.getElementById('editTap');
+  const overlay    = document.getElementById('overlay');
 
   // Position
   const isMobile = window.innerWidth <= 680;
@@ -504,14 +531,20 @@ function openEdit(keyEl, side, rowIdx, colIdx, currentLabel, currentColor) {
   popup.classList.add('on');
   overlay.classList.add('on');
 
-  input.value = currentLabel;
-  setTimeout(() => { input.focus(); input.select(); }, 50);
+  const labelParts = currentLabel ? currentLabel.split('\n') : ['', ''];
+  const holdVal = labelParts.length >= 2 ? labelParts[0] : '';
+  const tapVal  = labelParts.length >= 2 ? labelParts[1] : labelParts[0];
+  holdInput.value = holdVal;
+  tapInput.value  = tapVal;
+  setTimeout(() => { tapInput.focus(); tapInput.select(); }, 50);
 
   const isMobileInput = window.innerWidth <= 680;
-  input.onkeydown = (e) => {
-    if (!isMobileInput && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+  const onKeydown = (e) => {
+    if (!isMobileInput && e.key === 'Enter') { e.preventDefault(); commitEdit(); }
     if (e.key === 'Escape') closeEdit();
   };
+  holdInput.onkeydown = onKeydown;
+  tapInput.onkeydown  = onKeydown;
 
   // Color chips
   updateColorChips(currentColor);
@@ -533,7 +566,9 @@ function updateColorChips(selected) {
 
 function commitEdit() {
   if (!editTarget) return;
-  const newLabel = document.getElementById('editInput').value;
+  const holdVal  = document.getElementById('editHold').value.trim();
+  const tapVal   = document.getElementById('editTap').value.trim();
+  const newLabel = holdVal ? holdVal + '\n' + tapVal : tapVal;
   const { side, rowIdx, colIdx } = editTarget;
 
   state.layers[currentLayer][side][rowIdx][colIdx] = newLabel;
