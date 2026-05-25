@@ -183,6 +183,10 @@
 
     .save-msg { font-size: 0.7rem; color: #aaa; margin-left: 4px; }
 
+    /* ── Trackball spacer（右ハーフRow3の中央空白） ── */
+    .tb-spacer { width: calc(62px * 2 + 7px); flex-shrink: 0; }
+    @media (max-width: 680px) { .tb-spacer { width: calc(44px * 2 + 4px); } }
+
     /* ── Copy/Paste mode ── */
     .btn-copy-active { background: #e07b00; color: white; }
     .btn-paste-active { background: #1a7a3a; color: white; }
@@ -510,6 +514,13 @@ function buildHalf(side, rows, colorRows, label) {
       } else {
         keyEl.textContent = parts[parts.length - 1];
       }
+      // 右ハーフRow3のインデックス2の直前にトラックボール用スペーサーを挿入
+      if (side === 'R' && rowIdx === 3 && colIdx === 2) {
+        const spacer = document.createElement('div');
+        spacer.className = 'tb-spacer';
+        rowEl.appendChild(spacer);
+      }
+
       keyEl.title = 'タップして編集';
       keyEl.addEventListener('click', () => openEdit(keyEl, side, rowIdx, colIdx, k, override));
 
