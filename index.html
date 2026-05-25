@@ -183,9 +183,9 @@
 
     .save-msg { font-size: 0.7rem; color: #aaa; margin-left: 4px; }
 
-    /* ── Trackball spacer（右ハーフRow3の中央空白） ── */
-    .tb-spacer { width: calc(62px * 2 + 7px); flex-shrink: 0; }
-    @media (max-width: 680px) { .tb-spacer { width: calc(44px * 2 + 4px); } }
+    /* ── Trackball spacer（右ハーフRow3の中央空白：,の下1キー分） ── */
+    .tb-spacer { width: calc(62px + 7px); flex-shrink: 0; }
+    @media (max-width: 680px) { .tb-spacer { width: calc(44px + 4px); } }
 
     /* ── Copy/Paste mode ── */
     .btn-copy-active { background: #e07b00; color: white; }
@@ -489,17 +489,11 @@ function buildHalf(side, rows, colorRows, label) {
     rowEl.className = 'key-row';
 
     rowKeys.forEach((k, colIdx) => {
-      const isThumb = rowIdx === 3;
-      const isWide  = isThumb && (
-        (side === 'L' && (colIdx === 3 || colIdx === 4)) ||
-        (side === 'R' && (colIdx === 0 || colIdx === 1))
-      );
-
       const override = colorRows?.[rowIdx]?.[colIdx] ?? null;
       const cls = resolveClass(k, override);
 
       const keyEl = document.createElement('div');
-      keyEl.className = ['key', cls, isWide ? 'wide' : ''].filter(Boolean).join(' ');
+      keyEl.className = ['key', cls].filter(Boolean).join(' ');
       const parts = k ? k.split('\n') : [''];
       if (parts.length >= 2 && parts[0] && parts[1]) {
         keyEl.classList.add('has-hold');
