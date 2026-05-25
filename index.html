@@ -183,6 +183,20 @@
 
     .save-msg { font-size: 0.7rem; color: #aaa; margin-left: 4px; }
 
+    /* ── Copy/Paste mode ── */
+    .btn-copy-active { background: #e07b00; color: white; }
+    .btn-paste-active { background: #1a7a3a; color: white; }
+    .copy-status {
+      font-size: 0.75rem; font-weight: 600;
+      padding: 6px 12px; border-radius: 8px;
+      background: #fff8e6; color: #a05000;
+      border: 1px solid #f0c060;
+    }
+    .copy-status.paste { background: #e6f9ee; color: #1a6a30; border-color: #70d090; }
+    .key.copy-source { outline: 3px solid #e07b00; outline-offset: 2px; }
+    body.paste-mode .key:not(.copy-source) { cursor: crosshair; }
+    body.copy-mode  .key { cursor: copy; }
+
     /* ── Mobile ── */
     @media (max-width: 680px) {
       body { padding: 12px; overflow-x: hidden; }
@@ -236,6 +250,9 @@
   <button class="btn btn-primary"   onclick="exportJSON()">↑ エクスポート</button>
   <button class="btn btn-secondary" onclick="importJSON()">↓ インポート</button>
   <button class="btn btn-secondary" onclick="resetLayer()">レイヤーリセット</button>
+  <button class="btn btn-secondary" id="copyModeBtn" onclick="startCopyMode()">📋 コピー</button>
+  <button class="btn btn-secondary" id="cancelCopyBtn" onclick="cancelCopyMode()" style="display:none">✕ キャンセル</button>
+  <span id="copyStatus" style="display:none" class="copy-status"></span>
   <span class="save-msg" id="saveMsg">自動保存</span>
 </div>
 
@@ -363,6 +380,11 @@ let state = null;
 let currentLayer = 0;
 let editTarget   = null;   // { side, row, col }
 let pendingColor = null;   // color selection in popup
+
+// ── Copy/Paste state ──
+let copyMode     = null;   // null | 'copy' | 'paste'
+let copiedKey    = null;   // { label, color }
+let copySourceEl = null;   // コピー元のDOM要素（ハイライト用）
 
 function loadStateLocal() {
   try {
@@ -504,7 +526,57 @@ function buildHalf(side, rows, colorRows, label) {
 // ═══════════════════════════════════════════════════════════
 //  Edit popup
 // ═══════════════════════════════════════════════════════════
+function startCopyMode() {
+  copyMode = 'copy';
+  copiedKey = null;
+  if (copySourceEl) { copySourceEl.classList.remove('copy-source'); copySourceEl = null; }
+  document.body.classList.add('copy-mode');
+  document.getElementById('copyModeBtn').style.display = 'none';
+  document.getElementById('cancelCopyBtn').style.display = '';
+  const st = document.getElementById('copyStatus');
+  st.style.display = ''; st.className = 'copy-status';
+  st.textContent = '📋 コピーするキーをタップ';
+}
+
+function cancelCopyMode() {
+  copyMode = null; copiedKey = null;
+  if (copySourceEl) { copySourceEl.classList.remove('copy-source'); copySourceEl = null; }
+  document.body.classList.remove('copy-mode', 'paste-mode');
+  document.getElementById('copyModeBtn').style.display = '';
+  document.getElementById('cancelCopyBtn').style.display = 'none';
+  document.getElementById('copyStatus').style.display = 'none';
+}
+
 function openEdit(keyEl, side, rowIdx, colIdx, currentLabel, currentColor) {
+  // ── コピーモード ──
+  if (copyMode === 'copy') {
+    copiedKey = { label: currentLabel, color: currentColor };
+    if (copySourceEl) copySourceEl.classList.remove('copy-source');
+    copySourceEl = keyEl;
+    keyEl.classList.add('copy-source');
+    copyMode = 'paste';
+    document.body.classList.remove('copy-mode');
+    document.body.classList.add('paste-mode');
+    const st = document.getElementById('copyStatus');
+    st.className = 'copy-status paste';
+    st.textContent = '📌 貼り付け先をタップ';
+    return;
+  }
+  if (copyMode === 'paste') {
+    // 貼り付け
+    state.layers[currentLayer][side][rowIdx][colIdx] = copiedKey.label;
+    const colorKey = side === 'L' ? 'Lc' : 'Rc';
+    if (!state.layers[currentLayer][colorKey])
+      state.layers[currentLayer][colorKey] = state.layers[currentLayer][side].map(r => r.map(() => null));
+    state.layers[currentLayer][colorKey][rowIdx][colIdx] = copiedKey.color;
+    save();
+    renderKeyboard();
+    // ペーストモード継続（連続貼り付け可能）
+    const st = document.getElementById('copyStatus');
+    st.className = 'copy-status paste';
+    st.textContent = '📌 次の貼り付け先をタップ（完了はキャンセル）';
+    return;
+  }
   editTarget   = { side, rowIdx, colIdx };
   pendingColor = currentColor;
 
