@@ -184,8 +184,8 @@
     .save-msg { font-size: 0.7rem; color: #aaa; margin-left: 4px; }
 
     /* ── Trackball spacer（右ハーフRow3の中央空白：,の下1キー分） ── */
-    .tb-spacer { width: calc(62px + 7px); flex-shrink: 0; }
-    @media (max-width: 680px) { .tb-spacer { width: calc(44px + 4px); } }
+    .tb-spacer { width: calc((62px + 7px) * 2); flex-shrink: 0; }
+    @media (max-width: 680px) { .tb-spacer { width: calc((44px + 4px) * 2); } }
 
     /* ── 右ハーフRow3を1キー分左にオフセット ── */
     .thumb-row-offset { transform: translateX(calc(-62px - 7px)); }
