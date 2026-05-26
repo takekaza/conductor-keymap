@@ -190,8 +190,8 @@
 
     /* ── 右ハーフRow3を1キー分左にオフセット ── */
     .thumb-row-offset { transform: translateX(calc(-62px - 7px)); }
-    /* モバイルではオフセット無効（wrap側のpadding-leftで補正） */
-    @media (max-width: 680px) { .thumb-row-offset { transform: none; } }
+    /* モバイルでは1キー分左にオフセット（Enter が N より1つ左に来るよう調整） */
+    @media (max-width: 680px) { .thumb-row-offset { transform: translateX(calc(-(44px + 4px))); } }
 
     /* ── モバイル時：右ハーフwrapを1キー分右にずらしてRow3を収める ── */
     @media (max-width: 680px) { .right-half-wrap { padding-left: calc(44px + 4px); } }
@@ -228,6 +228,8 @@
       .key.wide { width: 66px; }
       .key-row  { gap: 4px; }
       .key-grid { gap: 4px; }
+      .key-hold { font-size: 0.52rem; }
+      .key-tap  { font-size: 0.58rem; }
 
       .edit-popup {
         width: calc(100vw - 24px);
