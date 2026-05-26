@@ -187,6 +187,10 @@
     .tb-spacer { width: calc(62px + 7px); flex-shrink: 0; }
     @media (max-width: 680px) { .tb-spacer { width: calc(44px + 4px); } }
 
+    /* ── 右ハーフRow3を1キー分左にオフセット ── */
+    .thumb-row-offset { transform: translateX(calc(-62px - 7px)); }
+    @media (max-width: 680px) { .thumb-row-offset { transform: translateX(calc(-44px - 4px)); } }
+
     /* ── Copy/Paste mode ── */
     .btn-copy-active { background: #e07b00; color: white; }
     .btn-paste-active { background: #1a7a3a; color: white; }
@@ -487,6 +491,8 @@ function buildHalf(side, rows, colorRows, label) {
   rows.forEach((rowKeys, rowIdx) => {
     const rowEl = document.createElement('div');
     rowEl.className = 'key-row';
+    // 右ハーフのRow3を1キー分左にオフセット（トラックボール分）
+    if (side === 'R' && rowIdx === 3) rowEl.classList.add('thumb-row-offset');
 
     rowKeys.forEach((k, colIdx) => {
       const override = colorRows?.[rowIdx]?.[colIdx] ?? null;
