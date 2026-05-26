@@ -190,11 +190,14 @@
 
     /* ── 右ハーフRow3を1キー分左にオフセット ── */
     .thumb-row-offset { transform: translateX(calc(-62px - 7px)); }
-    /* モバイルでは1キー分左にオフセット（Enter が N より1つ左に来るよう調整） */
-    @media (max-width: 680px) { .thumb-row-offset { transform: translateX(calc(-(44px + 4px))); } }
+    /* モバイルではRow3のtransformを無効化。代わりに通常行(Row0-2)をmargin-leftで右シフト */
+    @media (max-width: 680px) { .thumb-row-offset { transform: none; } }
 
-    /* ── モバイル時：右ハーフwrapを1キー分右にずらしてRow3を収める ── */
-    @media (max-width: 680px) { .right-half-wrap { padding-left: calc(44px + 4px); } }
+    /* ── モバイル時：右ハーフRow0-2を1キー分右にずらす（Row3は左端基準） ── */
+    @media (max-width: 680px) {
+      .right-half-wrap .key-row:not(.thumb-row-offset) { margin-left: calc(44px + 4px); }
+      .right-half-wrap .half-label { margin-left: calc(44px + 4px); }
+    }
 
     /* ── Copy/Paste mode ── */
     .btn-copy-active { background: #e07b00; color: white; }
