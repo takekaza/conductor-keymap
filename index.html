@@ -508,8 +508,8 @@ function buildHalf(side, rows, colorRows, label) {
       } else {
         keyEl.textContent = parts[parts.length - 1];
       }
-      // 右ハーフRow3のインデックス0の直前（最初）にトラックボール用スペーサーを挿入
-      if (side === 'R' && rowIdx === 3 && colIdx === 0) {
+      // 右ハーフRow3のインデックス2の直前（Haenの右）にトラックボール用スペーサーを挿入
+      if (side === 'R' && rowIdx === 3 && colIdx === 2) {
         const spacer = document.createElement('div');
         spacer.className = 'tb-spacer';
         rowEl.appendChild(spacer);
