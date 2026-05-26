@@ -189,7 +189,11 @@
 
     /* ── 右ハーフRow3を1キー分左にオフセット ── */
     .thumb-row-offset { transform: translateX(calc(-62px - 7px)); }
-    @media (max-width: 680px) { .thumb-row-offset { transform: translateX(calc(-44px - 4px)); } }
+    /* モバイルではオフセット無効（wrap側のpadding-leftで補正） */
+    @media (max-width: 680px) { .thumb-row-offset { transform: none; } }
+
+    /* ── モバイル時：右ハーフwrapを1キー分右にずらしてRow3を収める ── */
+    @media (max-width: 680px) { .right-half-wrap { padding-left: calc(44px + 4px); } }
 
     /* ── Copy/Paste mode ── */
     .btn-copy-active { background: #e07b00; color: white; }
@@ -479,6 +483,7 @@ function renderKeyboard() {
 
 function buildHalf(side, rows, colorRows, label) {
   const wrap = document.createElement('div');
+  if (side === 'R') wrap.classList.add('right-half-wrap');
 
   const lbl = document.createElement('div');
   lbl.className = 'half-label';
